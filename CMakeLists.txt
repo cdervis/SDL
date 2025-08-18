@@ -373,15 +373,9 @@ set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_RE
 
 cmake_dependent_option(SDL_SHARED "Build a shared version of the library" ${SDL_SHARED_DEFAULT} ${SDL_SHARED_AVAILABLE} OFF)
 cmake_dependent_option(SDL_STATIC "Build a static version of the library" ${SDL_STATIC_DEFAULT} ${SDL_STATIC_AVAILABLE} OFF)
-option(SDL_TEST_LIBRARY   "Build the SDL3_test library" ON)
 
-dep_option(SDL_TESTS           "Build the test directory" OFF SDL_TEST_LIBRARY OFF)
-dep_option(SDL_INSTALL_TESTS   "Install test-cases" OFF "SDL_INSTALL;NOT SDL_FRAMEWORK" OFF)
 dep_option(SDL_TESTS_LINK_SHARED "link tests to shared SDL library" "${SDL_SHARED}" "SDL_SHARED;SDL_STATIC" "${SDL_SHARED}")
 set(SDL_TESTS_TIMEOUT_MULTIPLIER "1" CACHE STRING "Timeout multiplier to account for really slow machines")
-
-set_option(SDL_EXAMPLES           "Build the examples directory")
-dep_option(SDL_EXAMPLES_LINK_SHARED "link examples to shared SDL library" "${SDL_SHARED}" "SDL_SHARED;SDL_STATIC" "${SDL_SHARED}")
 
 if(VITA)
   set_option(VIDEO_VITA_PIB  "Build with PSVita piglet gles2 support" OFF)
@@ -458,12 +452,6 @@ if(SDL_STATIC)
   else()
     message(WARNING "target_compile_features does not know c_std_99 for C compiler")
   endif()
-endif()
-
-if(SDL_TEST_LIBRARY)
-  add_library(SDL3_test STATIC)
-  add_library(SDL3::SDL3_test ALIAS SDL3_test)
-  SDL_AddCommonCompilerFlags(SDL3_test)
 endif()
 
 # Make sure SDL3::SDL3 always exists
@@ -3688,10 +3676,6 @@ if(SDL_CLANG_TIDY)
   endif()
 endif()
 
-if(SDL_TESTS)
-  set(HAVE_TESTS ON)
-endif()
-
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(ARCH_64 TRUE)
 else()
@@ -3907,30 +3891,6 @@ sdl_compile_definitions(
     "SDL_BUILD_MICRO_VERSION=${PROJECT_VERSION_PATCH}"
 )
 
-##### Tests #####
-
-if(SDL_TEST_LIBRARY)
-  file(GLOB TEST_SOURCES "${SDL3_SOURCE_DIR}/src/test/*.c")
-  target_sources(SDL3_test PRIVATE ${TEST_SOURCES})
-  if(APPLE)
-    set_target_properties(SDL3_test PROPERTIES
-      FRAMEWORK "${SDL_FRAMEWORK}"
-    )
-    if(SDL_FRAMEWORK)
-      set_target_properties(SDL3_test PROPERTIES
-        FRAMEWORK_VERSION "${SDL_FRAMEWORK_VERSION}"
-        MACOSX_FRAMEWORK_IDENTIFIER "org.libsdl.SDL3_test"
-        RESOURCE "${SDL_FRAMEWORK_RESOURCES}"
-      )
-    endif()
-  endif()
-  target_link_libraries(SDL3_test PUBLIC $<TARGET_NAME:SDL3::Headers>)
-  # FIXME: get rid of EXTRA_TEST_LIBS variable
-  target_link_libraries(SDL3_test PRIVATE ${EXTRA_TEST_LIBS})
-  set_property(TARGET SDL3_test APPEND PROPERTY COMPATIBLE_INTERFACE_STRING "SDL_VERSION")
-  set_property(TARGET SDL3_test PROPERTY INTERFACE_SDL_VERSION "SDL${SDL3_VERSION_MAJOR}")
-endif()
-
 ##### Configure installation folders #####
 
 if(WINDOWS AND NOT MINGW)
@@ -3995,10 +3955,6 @@ if(SDL_STATIC)
   export(TARGETS SDL3-static NAMESPACE "SDL3::" FILE "SDL3staticTargets.cmake")
 endif()
 
-if(SDL_TEST_LIBRARY)
-  export(TARGETS SDL3_test NAMESPACE "SDL3::" FILE "SDL3testTargets.cmake")
-endif()
-
 sdl_cmake_config_find_pkg_config_commands(SDL_FIND_PKG_CONFIG_COMMANDS
   COLLECTOR SDL3-collector
   CONFIG_COMPONENT_FOUND_NAME SDL3_SDL3-static_FOUND
@@ -4060,17 +4016,6 @@ if(SDL_INSTALL)
     endif()
   endif()
 
-  if(SDL_TEST_LIBRARY)
-    install(TARGETS SDL3_test EXPORT SDL3testTargets
-      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-      FRAMEWORK DESTINATION "."
-      RESOURCE DESTINATION "${SDL_SDLtest_INSTALL_RESOURCEDIR}"
-    )
-    if(MSVC)
-      SDL_install_pdb(SDL3_test "${CMAKE_INSTALL_LIBDIR}")
-    endif()
-  endif()
-
   ##### Install CMake Targets #####
 
   install(EXPORT SDL3headersTargets
@@ -4095,14 +4040,6 @@ if(SDL_INSTALL)
     )
   endif()
 
-  if(SDL_TEST_LIBRARY)
-    install(EXPORT SDL3testTargets
-      FILE "${SDL_SDLtest_INSTALL_CMAKEFILENAME}"
-      NAMESPACE SDL3::
-      DESTINATION "${SDL_SDLtest_INSTALL_CMAKEDIR}"
-    )
-  endif()
-
   install(FILES
       ${CMAKE_CURRENT_BINARY_DIR}/SDL3Config.cmake
       ${CMAKE_CURRENT_BINARY_DIR}/SDL3ConfigVersion.cmake
@@ -4114,12 +4051,6 @@ if(SDL_INSTALL)
     install(FILES ${SDL3_INCLUDE_FILES}
       DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SDL3"
     )
-    if(SDL_TEST_LIBRARY)
-      install(FILES ${SDL3_TEST_INCLUDE_FILES}
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SDL3"
-      )
-    endif()
-
     install(FILES "LICENSE.txt" DESTINATION "${SDL_INSTALL_LICENSEDIR}")
   endif()
 
