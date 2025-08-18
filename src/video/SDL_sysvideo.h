@@ -131,7 +131,7 @@ struct SDL_Window
     SDL_PropertiesID props;
 
     int num_renderers;
-    SDL_Renderer **renderers;
+    void **renderers;
 
     SDL_WindowData *internal;
 

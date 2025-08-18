@@ -35,7 +35,6 @@
 #include "../SDL_properties_c.h"
 #include "../timer/SDL_timer_c.h"
 #include "../camera/SDL_camera_c.h"
-#include "../render/SDL_sysrender.h"
 #include "../main/SDL_main_callbacks.h"
 
 #ifdef SDL_VIDEO_OPENGL
@@ -275,8 +274,8 @@ static void SDL_UpdateWindowHierarchy(SDL_Window *window, SDL_Window *parent)
 
 typedef struct
 {
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
+    void *renderer;
+    void *texture;
     void *pixels;
     int pitch;
     int bytes_per_pixel;
@@ -300,240 +299,6 @@ static Uint32 SDL_DefaultGraphicsBackends(SDL_VideoDevice *_this)
     }
 #endif
     return 0;
-}
-
-static void SDLCALL SDL_CleanupWindowTextureData(void *userdata, void *value)
-{
-    SDL_WindowTextureData *data = (SDL_WindowTextureData *)value;
-
-    if (data->texture) {
-        SDL_DestroyTexture(data->texture);
-    }
-    if (data->renderer) {
-        SDL_DestroyRenderer(data->renderer);
-    }
-    SDL_free(data->pixels);
-    SDL_free(data);
-}
-
-static bool SDL_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch)
-{
-    SDL_PropertiesID props = SDL_GetWindowProperties(window);
-    SDL_WindowTextureData *data = (SDL_WindowTextureData *)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_TEXTUREDATA_POINTER, NULL);
-    const bool transparent = (window->flags & SDL_WINDOW_TRANSPARENT) ? true : false;
-    int i;
-    int w, h;
-    const SDL_PixelFormat *texture_formats;
-
-    SDL_GetWindowSizeInPixels(window, &w, &h);
-
-    if (!data) {
-        SDL_Renderer *renderer = NULL;
-        const char *render_driver = NULL;
-
-        // See if there's a render driver being requested
-        const char *hint = SDL_GetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
-        if (hint && *hint != '0' && *hint != '1' &&
-            SDL_strcasecmp(hint, "true") != 0 &&
-            SDL_strcasecmp(hint, "false") != 0 &&
-            SDL_strcasecmp(hint, SDL_SOFTWARE_RENDERER) != 0) {
-            render_driver = hint;
-        }
-
-        if (!render_driver) {
-            render_driver = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
-        }
-        if (render_driver && SDL_strcasecmp(render_driver, SDL_SOFTWARE_RENDERER) == 0) {
-            render_driver = NULL;
-        }
-
-        char *render_driver_copy = NULL;
-        if (render_driver && *render_driver) {
-            render_driver_copy = SDL_strdup(render_driver);
-            render_driver = render_driver_copy;
-            if (render_driver_copy) {  // turn any "software" requests into "xxxxxxxx" so we don't end up in infinite recursion.
-                char *prev = render_driver_copy;
-                char *ptr = prev;
-                while ((ptr = SDL_strchr(ptr, ',')) != NULL) {
-                    *ptr = '\0';
-                    const bool is_sw = (SDL_strcasecmp(prev, SDL_SOFTWARE_RENDERER) == 0);
-                    *ptr = ',';
-                    if (is_sw) {
-                        SDL_memset(prev, 'x', SDL_strlen(SDL_SOFTWARE_RENDERER));
-                        ptr = prev;
-                    } else {
-                        ptr++;
-                        prev = ptr;
-                    }
-                }
-
-                if (SDL_strcasecmp(prev, SDL_SOFTWARE_RENDERER) == 0) {
-                    SDL_memset(prev, 'x', SDL_strlen(SDL_SOFTWARE_RENDERER));
-                }
-            }
-        }
-
-        // Check to see if there's a specific driver requested
-        if (render_driver) {
-            renderer = SDL_CreateRenderer(window, render_driver);
-            SDL_free(render_driver_copy);
-            if (!renderer) {
-                // The error for this specific renderer has already been set
-                return false;
-            }
-        } else {
-            SDL_assert(render_driver_copy == NULL);
-            const int total = SDL_GetNumRenderDrivers();
-            for (i = 0; i < total; ++i) {
-                const char *name = SDL_GetRenderDriver(i);
-                if (name && SDL_strcmp(name, SDL_SOFTWARE_RENDERER) != 0) {
-                    renderer = SDL_CreateRenderer(window, name);
-                    if (renderer) {
-                        break; // this will work.
-                    }
-                }
-            }
-            if (!renderer) {
-                return SDL_SetError("No hardware accelerated renderers available");
-            }
-        }
-
-        SDL_assert(renderer != NULL); // should have explicitly checked this above.
-
-        // Create the data after we successfully create the renderer (bug #1116)
-        data = (SDL_WindowTextureData *)SDL_calloc(1, sizeof(*data));
-        if (!data) {
-            SDL_DestroyRenderer(renderer);
-            return false;
-        }
-        if (!SDL_SetPointerPropertyWithCleanup(props, SDL_PROP_WINDOW_TEXTUREDATA_POINTER, data, SDL_CleanupWindowTextureData, NULL)) {
-            SDL_DestroyRenderer(renderer);
-            return false;
-        }
-
-        data->renderer = renderer;
-    }
-
-    texture_formats = (const SDL_PixelFormat *)SDL_GetPointerProperty(SDL_GetRendererProperties(data->renderer), SDL_PROP_RENDERER_TEXTURE_FORMATS_POINTER, NULL);
-    if (!texture_formats) {
-        return false;
-    }
-
-    // Free any old texture and pixel data
-    if (data->texture) {
-        SDL_DestroyTexture(data->texture);
-        data->texture = NULL;
-    }
-    SDL_free(data->pixels);
-    data->pixels = NULL;
-
-    // Find the first format with or without an alpha channel
-    *format = texture_formats[0];
-
-    for (i = 0; texture_formats[i] != SDL_PIXELFORMAT_UNKNOWN; ++i) {
-        SDL_PixelFormat texture_format = texture_formats[i];
-        if (!SDL_ISPIXELFORMAT_FOURCC(texture_format) &&
-            !SDL_ISPIXELFORMAT_10BIT(texture_format) &&
-            !SDL_ISPIXELFORMAT_FLOAT(texture_format) &&
-            transparent == SDL_ISPIXELFORMAT_ALPHA(texture_format)) {
-            *format = texture_format;
-            break;
-        }
-    }
-
-    data->texture = SDL_CreateTexture(data->renderer, *format,
-                                      SDL_TEXTUREACCESS_STREAMING,
-                                      w, h);
-    if (!data->texture) {
-        // codechecker_false_positive [Malloc] Static analyzer doesn't realize allocated `data` is saved to SDL_PROP_WINDOW_TEXTUREDATA_POINTER and not leaked here.
-        return false; // NOLINT(clang-analyzer-unix.Malloc)
-    }
-
-    // Create framebuffer data
-    data->bytes_per_pixel = SDL_BYTESPERPIXEL(*format);
-    data->pitch = (((w * data->bytes_per_pixel) + 3) & ~3);
-
-    {
-        // Make static analysis happy about potential SDL_malloc(0) calls.
-        const size_t allocsize = (size_t)h * data->pitch;
-        data->pixels = SDL_malloc((allocsize > 0) ? allocsize : 1);
-        if (!data->pixels) {
-            return false;
-        }
-    }
-
-    *pixels = data->pixels;
-    *pitch = data->pitch;
-
-    // Make sure we're not double-scaling the viewport
-    SDL_SetRenderViewport(data->renderer, NULL);
-
-    return true;
-}
-
-bool SDL_SetWindowTextureVSync(SDL_VideoDevice *_this, SDL_Window *window, int vsync)
-{
-    SDL_WindowTextureData *data;
-
-    data = (SDL_WindowTextureData *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_TEXTUREDATA_POINTER, NULL);
-    if (!data) {
-        return false;
-    }
-    if (!data->renderer) {
-        return false;
-    }
-    return SDL_SetRenderVSync(data->renderer, vsync);
-}
-
-static bool SDL_GetWindowTextureVSync(SDL_VideoDevice *_this, SDL_Window *window, int *vsync)
-{
-    SDL_WindowTextureData *data;
-
-    data = (SDL_WindowTextureData *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_TEXTUREDATA_POINTER, NULL);
-    if (!data) {
-        return false;
-    }
-    if (!data->renderer) {
-        return false;
-    }
-    return SDL_GetRenderVSync(data->renderer, vsync);
-}
-
-static bool SDL_UpdateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
-{
-    SDL_WindowTextureData *data;
-    SDL_Rect rect;
-    void *src;
-    int w, h;
-
-    SDL_GetWindowSizeInPixels(window, &w, &h);
-
-    data = (SDL_WindowTextureData *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_TEXTUREDATA_POINTER, NULL);
-    if (!data || !data->texture) {
-        return SDL_SetError("No window texture data");
-    }
-
-    // Update a single rect that contains subrects for best DMA performance
-    if (SDL_GetSpanEnclosingRect(w, h, numrects, rects, &rect)) {
-        src = (void *)((Uint8 *)data->pixels +
-                       rect.y * data->pitch +
-                       rect.x * data->bytes_per_pixel);
-        if (!SDL_UpdateTexture(data->texture, &rect, src, data->pitch)) {
-            return false;
-        }
-
-        if (!SDL_RenderTexture(data->renderer, data->texture, NULL, NULL)) {
-            return false;
-        }
-
-        SDL_RenderPresent(data->renderer);
-    }
-    return true;
-}
-
-static void SDL_DestroyWindowTexture(SDL_VideoDevice *_this, SDL_Window *window)
-{
-    SDL_ClearProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_TEXTUREDATA_POINTER);
 }
 
 static SDL_VideoDevice *_this = NULL;
@@ -3504,7 +3269,7 @@ static bool ShouldAttemptTextureFramebuffer(void)
     // See if there's a hint override
     hint = SDL_GetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
     if (hint && *hint) {
-        if (*hint == '0' || SDL_strcasecmp(hint, "false") == 0 || SDL_strcasecmp(hint, SDL_SOFTWARE_RENDERER) == 0) {
+        if (*hint == '0' || SDL_strcasecmp(hint, "false") == 0) {
             attempt_texture_framebuffer = false;
         } else {
             attempt_texture_framebuffer = true;
@@ -3541,33 +3306,6 @@ static SDL_Surface *SDL_CreateWindowFramebuffer(SDL_Window *window)
     int w, h;
 
     SDL_GetWindowSizeInPixels(window, &w, &h);
-
-    /* This will switch the video backend from using a software surface to
-       using a GPU texture through the 2D render API, if we think this would
-       be more efficient. This only checks once, on demand. */
-    if (!_this->checked_texture_framebuffer) {
-        if (ShouldAttemptTextureFramebuffer()) {
-            if (!SDL_CreateWindowTexture(_this, window, &format, &pixels, &pitch)) {
-                /* !!! FIXME: if this failed halfway (made renderer, failed to make texture, etc),
-                   !!! FIXME:  we probably need to clean this up so it doesn't interfere with
-                   !!! FIXME:  a software fallback at the system level (can we blit to an
-                   !!! FIXME:  OpenGL window? etc). */
-            } else {
-                // future attempts will just try to use a texture framebuffer.
-                /* !!! FIXME:  maybe we shouldn't override these but check if we used a texture
-                   !!! FIXME:  framebuffer at the right places; is it feasible we could have an
-                   !!! FIXME:  accelerated OpenGL window and a second ends up in software? */
-                _this->CreateWindowFramebuffer = SDL_CreateWindowTexture;
-                _this->SetWindowFramebufferVSync = SDL_SetWindowTextureVSync;
-                _this->GetWindowFramebufferVSync = SDL_GetWindowTextureVSync;
-                _this->UpdateWindowFramebuffer = SDL_UpdateWindowTexture;
-                _this->DestroyWindowFramebuffer = SDL_DestroyWindowTexture;
-                created_framebuffer = true;
-            }
-        }
-
-        _this->checked_texture_framebuffer = true; // don't check this again.
-    }
 
     if (!created_framebuffer) {
         if (!_this->CreateWindowFramebuffer || !_this->UpdateWindowFramebuffer) {
@@ -4347,31 +4085,6 @@ SDL_Window *SDL_GetToplevelForKeyboardFocus(void)
     return focus;
 }
 
-bool SDL_AddWindowRenderer(SDL_Window *window, SDL_Renderer *renderer)
-{
-    SDL_Renderer **renderers = (SDL_Renderer **)SDL_realloc(window->renderers, (window->num_renderers + 1) * sizeof(*renderers));
-    if (!renderers) {
-        return false;
-    }
-
-    window->renderers = renderers;
-    window->renderers[window->num_renderers++] = renderer;
-    return true;
-}
-
-void SDL_RemoveWindowRenderer(SDL_Window *window, SDL_Renderer *renderer)
-{
-    for (int i = 0; i < window->num_renderers; ++i) {
-        if (window->renderers[i] == renderer) {
-            if (i < (window->num_renderers - 1)) {
-                SDL_memmove(&window->renderers[i], &window->renderers[i + 1], (window->num_renderers - i - 1) * sizeof(window->renderers[i]));
-            }
-            --window->num_renderers;
-            break;
-        }
-    }
-}
-
 void SDL_DestroyWindow(SDL_Window *window)
 {
     CHECK_WINDOW_MAGIC(window,);
@@ -4384,11 +4097,6 @@ void SDL_DestroyWindow(SDL_Window *window)
     }
 
     SDL_SendWindowEvent(window, SDL_EVENT_WINDOW_DESTROYED, 0, 0);
-
-    SDL_Renderer *renderer = SDL_GetRenderer(window);
-    if (renderer) {
-        SDL_DestroyRendererWithoutFreeing(renderer);
-    }
 
     // Restore video mode, etc.
     SDL_UpdateFullscreenMode(window, SDL_FULLSCREEN_OP_LEAVE, true);

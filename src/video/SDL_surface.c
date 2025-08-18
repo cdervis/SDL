@@ -26,7 +26,6 @@
 #include "SDL_pixels_c.h"
 #include "SDL_stb_c.h"
 #include "SDL_yuv_c.h"
-#include "../render/SDL_sysrender.h"
 
 #include "SDL_surface_c.h"
 

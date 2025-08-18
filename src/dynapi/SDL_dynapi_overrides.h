@@ -439,7 +439,6 @@
 #define SDL_GetNumJoystickButtons SDL_GetNumJoystickButtons_REAL
 #define SDL_GetNumJoystickHats SDL_GetNumJoystickHats_REAL
 #define SDL_GetNumLogicalCPUCores SDL_GetNumLogicalCPUCores_REAL
-#define SDL_GetNumRenderDrivers SDL_GetNumRenderDrivers_REAL
 #define SDL_GetNumVideoDrivers SDL_GetNumVideoDrivers_REAL
 #define SDL_GetNumberProperty SDL_GetNumberProperty_REAL
 #define SDL_GetOriginalMemoryFunctions SDL_GetOriginalMemoryFunctions_REAL

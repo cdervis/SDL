@@ -64,7 +64,6 @@ SDL3_0.0.0 {
     SDL_CompareAndSwapAtomicInt;
     SDL_CompareAndSwapAtomicPointer;
     SDL_CompareAndSwapAtomicU32;
-    SDL_ComposeCustomBlendMode;
     SDL_ConvertAudioSamples;
     SDL_ConvertEventToRenderCoordinates;
     SDL_ConvertPixels;
@@ -414,7 +413,6 @@ SDL3_0.0.0 {
     SDL_GetNumJoystickButtons;
     SDL_GetNumJoystickHats;
     SDL_GetNumLogicalCPUCores;
-    SDL_GetNumRenderDrivers;
     SDL_GetNumVideoDrivers;
     SDL_GetNumberProperty;
     SDL_GetOriginalMemoryFunctions;

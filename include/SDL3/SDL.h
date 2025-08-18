@@ -47,7 +47,6 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_gamepad.h>
-#include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_guid.h>
 #include <SDL3/SDL_haptic.h>
 #include <SDL3/SDL_hidapi.h>
@@ -72,7 +71,6 @@
 #include <SDL3/SDL_process.h>
 #include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_rect.h>
-#include <SDL3/SDL_render.h>
 #include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_sensor.h>
 #include <SDL3/SDL_storage.h>

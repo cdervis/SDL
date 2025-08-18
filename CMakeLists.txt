@@ -349,14 +349,8 @@ dep_option(SDL_COCOA               "Use Cocoa video driver" ON "APPLE" OFF)
 dep_option(SDL_DIRECTX             "Use DirectX for Windows audio/video" ON "SDL_AUDIO OR SDL_VIDEO;WINDOWS" OFF)
 dep_option(SDL_XINPUT              "Use Xinput for Windows" ON "WINDOWS" OFF)
 dep_option(SDL_WASAPI              "Use the Windows WASAPI audio driver" ON "WINDOWS;SDL_AUDIO" OFF)
-dep_option(SDL_RENDER_D3D          "Enable the Direct3D 9 render driver" ON "SDL_RENDER;SDL_DIRECTX" OFF)
-dep_option(SDL_RENDER_D3D11        "Enable the Direct3D 11 render driver" ON "SDL_RENDER;SDL_DIRECTX" OFF)
-dep_option(SDL_RENDER_D3D12        "Enable the Direct3D 12 render driver" ON "SDL_RENDER;SDL_DIRECTX" OFF)
-dep_option(SDL_RENDER_METAL        "Enable the Metal render driver" ON "SDL_RENDER;${APPLE}" OFF)
-dep_option(SDL_RENDER_GPU          "Enable the SDL_GPU render driver" ON "SDL_RENDER;SDL_GPU" OFF)
 dep_option(SDL_VIVANTE             "Use Vivante EGL video driver" ON "${UNIX_SYS};SDL_CPU_ARM32" OFF)
 dep_option(SDL_VULKAN              "Enable Vulkan support" ON "SDL_VIDEO;ANDROID OR APPLE OR LINUX OR FREEBSD OR WINDOWS" OFF)
-dep_option(SDL_RENDER_VULKAN       "Enable the Vulkan render driver" ON "SDL_RENDER;SDL_VULKAN" OFF)
 dep_option(SDL_METAL               "Enable Metal support" ON "APPLE" OFF)
 set_option(SDL_OPENVR              "Use OpenVR video driver" OFF)
 dep_option(SDL_KMSDRM              "Use KMS DRM video driver" ${UNIX_SYS} "SDL_VIDEO" OFF)
@@ -374,7 +368,6 @@ set_option(SDL_LIBUDEV             "Enable libudev support" ON)
 set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors" OFF)
 set_option(SDL_CCACHE              "Use Ccache to speed up build" OFF)
 set_option(SDL_CLANG_TIDY          "Run clang-tidy static analysis" OFF)
-set_option(SDL_GPU_DXVK            "Build SDL_GPU with DXVK support" OFF)
 
 set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_REVISION")
 
@@ -396,7 +389,6 @@ if(VITA)
 endif()
 
 if (NGAGE)
-  set(SDL_GPU              OFF)
   set(SDL_CAMERA           OFF)
   set(SDL_JOYSTICK         OFF)
   set(SDL_HAPTIC           OFF)
@@ -1212,8 +1204,6 @@ sdl_glob_sources(
   "${SDL3_SOURCE_DIR}/src/io/generic/*.h"
   "${SDL3_SOURCE_DIR}/src/filesystem/*.c"
   "${SDL3_SOURCE_DIR}/src/filesystem/*.h"
-  "${SDL3_SOURCE_DIR}/src/gpu/*.c"
-  "${SDL3_SOURCE_DIR}/src/gpu/*.h"
   "${SDL3_SOURCE_DIR}/src/joystick/*.c"
   "${SDL3_SOURCE_DIR}/src/joystick/*.h"
   "${SDL3_SOURCE_DIR}/src/haptic/*.c"
@@ -1962,16 +1952,6 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
       )
     endif()
 
-    if(SDL_GPU AND SDL_GPU_DXVK)
-      if(PKG_CONFIG_FOUND)
-        pkg_search_module(DXVK_NATIVE dxvk-dxgi)
-        if(DXVK_NATIVE_FOUND)
-          set(HAVE_D3D11_H TRUE)
-          sdl_include_directories(PRIVATE SYSTEM ${DXVK_NATIVE_INCLUDE_DIRS})
-        endif()
-      endif()
-    endif()
-
     if(HAVE_LIBURING_H)
       sdl_sources("${SDL3_SOURCE_DIR}/src/io/io_uring/SDL_asyncio_liburing.c")
     endif()
@@ -2635,13 +2615,6 @@ elseif(APPLE)
           )
           set(SDL_VIDEO_RENDER_METAL 1)
           set(HAVE_RENDER_METAL TRUE)
-        endif()
-        if (SDL_GPU)
-          set(SDL_GPU_METAL 1)
-          sdl_glob_sources(
-            "${SDL3_SOURCE_DIR}/src/gpu/metal/*.m"
-            "${SDL3_SOURCE_DIR}/src/gpu/metal/*.h"
-          )
         endif()
       endif()
     endif()
@@ -3430,37 +3403,6 @@ if(SDL_VIDEO)
 endif()
 
 sdl_glob_sources(${SDL3_SOURCE_DIR}/src/tray/*.c)
-
-if(SDL_GPU)
-  if(HAVE_D3D11_H)
-    sdl_glob_sources(
-      "${SDL3_SOURCE_DIR}/src/gpu/d3d11/*.c"
-      "${SDL3_SOURCE_DIR}/src/gpu/d3d11/*.h"
-    )
-    set(SDL_GPU_D3D11 1)
-    set(HAVE_SDL_GPU TRUE)
-  endif()
-  if(WINDOWS)
-    sdl_glob_sources(
-      "${SDL3_SOURCE_DIR}/src/gpu/d3d12/*.c"
-      "${SDL3_SOURCE_DIR}/src/gpu/d3d12/*.h"
-    )
-    set(SDL_GPU_D3D12 1)
-    set(HAVE_SDL_GPU TRUE)
-  endif()
-  if(SDL_VIDEO_VULKAN)
-    sdl_glob_sources(
-      "${SDL3_SOURCE_DIR}/src/gpu/vulkan/*.c"
-      "${SDL3_SOURCE_DIR}/src/gpu/vulkan/*.h"
-    )
-    set(SDL_GPU_VULKAN 1)
-    set(HAVE_SDL_GPU TRUE)
-  endif()
-  if(SDL_RENDER_GPU)
-    set(SDL_VIDEO_RENDER_GPU 1)
-    set(HAVE_RENDER_GPU TRUE)
-  endif()
-endif()
 
 # Dummies
 # configure.ac does it differently:
