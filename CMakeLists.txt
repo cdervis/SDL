@@ -4248,14 +4248,6 @@ if(SDL_UNINSTALL)
   endif()
 endif()
 
-##### Tests subproject (must appear after the install/uninstall targets) #####
-
-if(SDL_TESTS)
-  set(HAVE_TESTS ON)
-  enable_testing()
-  add_subdirectory(test)
-endif()
-
 ##### Examples subproject (must appear after the install/uninstall targets) #####
 
 if(SDL_EXAMPLES)
