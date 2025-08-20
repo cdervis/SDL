@@ -3537,25 +3537,6 @@ foreach(_hdr IN LISTS SDL3_INCLUDE_FILES)
   endif()
 endforeach()
 
-# If REVISION.txt exists, then we are building from a SDL release.
-# SDL_revision.h(.cmake) in source releases have SDL_REVISION baked into them.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/REVISION.txt")
-  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/REVISION.txt" revisions)
-  list(GET revisions 0 revisions_0)
-  string(STRIP "${revisions_0}" SDL_REVISION)
-else()
-  set(SDL_REVISION "" CACHE STRING "Custom SDL revision (only used when REVISION.txt does not exist)")
-endif()
-if(NOT SDL_REVISION)
-  # If SDL_REVISION is not overrided, use git to describe
-  git_describe(SDL_REVISION_GIT)
-  set(SDL_REVISION "SDL3-${SDL3_VERSION}-${SDL_REVISION_GIT}")
-endif()
-
-execute_process(COMMAND "${CMAKE_COMMAND}" -E make_directory "${SDL3_BINARY_DIR}/include-revision/SDL3")
-configure_file(include/build_config/SDL_revision.h.cmake include-revision/SDL3/SDL_revision.h @ONLY)
-list(APPEND SDL3_INCLUDE_FILES "${SDL3_BINARY_DIR}/include-revision/SDL3/SDL_revision.h")
-
 if(SDL_FRAMEWORK)
   # With Apple frameworks, headers in the PUBLIC_HEADER property also need to be added as sources
   list(APPEND SDL3_INCLUDE_FILES ${SDL3_TEST_INCLUDE_FILES})
