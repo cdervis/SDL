@@ -3256,47 +3256,6 @@ bool SDL_SyncWindow(SDL_Window *window)
     }
 }
 
-static bool ShouldAttemptTextureFramebuffer(void)
-{
-    const char *hint;
-    bool attempt_texture_framebuffer = true;
-
-    // The dummy driver never has GPU support, of course.
-    if (_this->is_dummy) {
-        return false;
-    }
-
-    // See if there's a hint override
-    hint = SDL_GetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
-    if (hint && *hint) {
-        if (*hint == '0' || SDL_strcasecmp(hint, "false") == 0) {
-            attempt_texture_framebuffer = false;
-        } else {
-            attempt_texture_framebuffer = true;
-        }
-    } else {
-        // Check for platform specific defaults
-#ifdef SDL_PLATFORM_LINUX
-        // On WSL, direct X11 is faster than using OpenGL for window framebuffers, so try to detect WSL and avoid texture framebuffer.
-        if ((_this->CreateWindowFramebuffer) && (SDL_strcmp(_this->name, "x11") == 0)) {
-            struct stat sb;
-            if ((stat("/proc/sys/fs/binfmt_misc/WSLInterop", &sb) == 0) || (stat("/run/WSL", &sb) == 0)) { // if either of these exist, we're on WSL.
-                attempt_texture_framebuffer = false;
-            }
-        }
-#endif
-#if defined(SDL_PLATFORM_WIN32) || defined(SDL_PLATFORM_WINGDK) // GDI BitBlt() is way faster than Direct3D dynamic textures right now. (!!! FIXME: is this still true?)
-        if (_this->CreateWindowFramebuffer && (SDL_strcmp(_this->name, "windows") == 0)) {
-            attempt_texture_framebuffer = false;
-        }
-#endif
-#ifdef SDL_PLATFORM_EMSCRIPTEN
-        attempt_texture_framebuffer = false;
-#endif
-    }
-    return attempt_texture_framebuffer;
-}
-
 static SDL_Surface *SDL_CreateWindowFramebuffer(SDL_Window *window)
 {
     SDL_PixelFormat format = SDL_PIXELFORMAT_UNKNOWN;
