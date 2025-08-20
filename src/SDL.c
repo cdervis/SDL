@@ -44,7 +44,6 @@
 #include "SDL_hints_c.h"
 #include "SDL_log_c.h"
 #include "SDL_properties_c.h"
-#include "audio/SDL_sysaudio.h"
 #include "camera/SDL_camera_c.h"
 #include "cpuinfo/SDL_cpuinfo_c.h"
 #include "events/SDL_events_c.h"
@@ -374,33 +373,6 @@ bool SDL_InitSubSystem(SDL_InitFlags flags)
 #endif
     }
 
-    // Initialize the audio subsystem
-    if (flags & SDL_INIT_AUDIO) {
-#ifndef SDL_AUDIO_DISABLED
-        if (SDL_ShouldInitSubsystem(SDL_INIT_AUDIO)) {
-            // audio implies events
-            if (!SDL_InitOrIncrementSubsystem(SDL_INIT_EVENTS)) {
-                goto quit_and_error;
-            }
-
-            SDL_IncrementSubsystemRefCount(SDL_INIT_AUDIO);
-            if (!SDL_InitAudio(NULL)) {
-                SDL_DecrementSubsystemRefCount(SDL_INIT_AUDIO);
-                SDL_PushError();
-                SDL_QuitSubSystem(SDL_INIT_EVENTS);
-                SDL_PopError();
-                goto quit_and_error;
-            }
-        } else {
-            SDL_IncrementSubsystemRefCount(SDL_INIT_AUDIO);
-        }
-        flags_initialized |= SDL_INIT_AUDIO;
-#else
-        SDL_SetError("SDL not built with audio support");
-        goto quit_and_error;
-#endif
-    }
-
     // Initialize the joystick subsystem
     if (flags & SDL_INIT_JOYSTICK) {
 #ifndef SDL_JOYSTICK_DISABLED
@@ -587,17 +559,6 @@ void SDL_QuitSubSystem(SDL_InitFlags flags)
             SDL_QuitHaptics();
         }
         SDL_DecrementSubsystemRefCount(SDL_INIT_HAPTIC);
-    }
-#endif
-
-#ifndef SDL_AUDIO_DISABLED
-    if (flags & SDL_INIT_AUDIO) {
-        if (SDL_ShouldQuitSubsystem(SDL_INIT_AUDIO)) {
-            SDL_QuitAudio();
-            // audio implies events
-            SDL_QuitSubSystem(SDL_INIT_EVENTS);
-        }
-        SDL_DecrementSubsystemRefCount(SDL_INIT_AUDIO);
     }
 #endif
 

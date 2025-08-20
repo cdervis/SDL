@@ -53,7 +53,6 @@
 #define SDL_events_h_
 
 #include <SDL3/SDL_stdinc.h>
-#include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_camera.h>
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_gamepad.h>
@@ -716,7 +715,7 @@ typedef struct SDL_AudioDeviceEvent
     SDL_EventType type; /**< SDL_EVENT_AUDIO_DEVICE_ADDED, or SDL_EVENT_AUDIO_DEVICE_REMOVED, or SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED */
     Uint32 reserved;
     Uint64 timestamp;   /**< In nanoseconds, populated using SDL_GetTicksNS() */
-    SDL_AudioDeviceID which;       /**< SDL_AudioDeviceID for the device being added or removed or changing */
+    uint32_t which;       /**< SDL_AudioDeviceID for the device being added or removed or changing */
     bool recording; /**< false if a playback device, true if a recording device. */
     Uint8 padding1;
     Uint8 padding2;

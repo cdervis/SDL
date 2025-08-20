@@ -159,8 +159,6 @@ extern void WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect);
 // Returns false if a window client rect is not valid
 bool WIN_WindowRectValid(const RECT *rect);
 
-extern SDL_AudioFormat SDL_WaveFormatExToSDLFormat(WAVEFORMATEX *waveformat);
-
 // WideCharToMultiByte, but with some WinXP management.
 extern int WIN_WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWCH lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, LPCCH lpDefaultChar, LPBOOL lpUsedDefaultChar);
 
