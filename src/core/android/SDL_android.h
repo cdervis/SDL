@@ -33,8 +33,6 @@ extern "C" {
 #include <EGL/eglplatform.h>
 #include <android/native_window_jni.h>
 
-#include "../../audio/SDL_sysaudio.h"
-
 // this appears to be broken right now (on Android, not SDL, I think...?).
 #define ALLOW_MULTIPLE_ANDROID_AUDIO_DEVICES 0
 
@@ -72,11 +70,6 @@ extern ANativeWindow *Android_JNI_GetNativeWindow(void);
 
 extern SDL_DisplayOrientation Android_JNI_GetDisplayNaturalOrientation(void);
 extern SDL_DisplayOrientation Android_JNI_GetDisplayCurrentOrientation(void);
-
-// Audio support
-void Android_StartAudioHotplug(SDL_AudioDevice **default_playback, SDL_AudioDevice **default_recording);
-void Android_StopAudioHotplug(void);
-extern void Android_AudioThreadInit(SDL_AudioDevice *device);
 
 // Detecting device type
 extern bool Android_IsDeXMode(void);

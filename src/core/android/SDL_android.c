@@ -1673,32 +1673,10 @@ bool Android_JNI_GetAccelerometerValues(float values[3])
     return result;
 }
 
-/*
- * Audio support
- */
-void Android_StartAudioHotplug(SDL_AudioDevice **default_playback, SDL_AudioDevice **default_recording)
-{
-    JNIEnv *env = Android_JNI_GetEnv();
-    // this will fire the callback for each existing device right away (which will eventually SDL_AddAudioDevice), and again later when things change.
-    (*env)->CallStaticVoidMethod(env, mAudioManagerClass, midRegisterAudioDeviceCallback);
-    *default_playback = *default_recording = NULL;  // !!! FIXME: how do you decide the default device id?
-}
-
-void Android_StopAudioHotplug(void)
-{
-    JNIEnv *env = Android_JNI_GetEnv();
-    (*env)->CallStaticVoidMethod(env, mAudioManagerClass, midUnregisterAudioDeviceCallback);
-}
-
 static void Android_JNI_AudioSetThreadPriority(int recording, int device_id)
 {
     JNIEnv *env = Android_JNI_GetEnv();
     (*env)->CallStaticVoidMethod(env, mAudioManagerClass, midAudioSetThreadPriority, recording, device_id);
-}
-
-void Android_AudioThreadInit(SDL_AudioDevice *device)
-{
-    Android_JNI_AudioSetThreadPriority((int) device->recording, (int)device->instance_id);
 }
 
 // Test for an exception and call SDL_SetError with its detail if one occurs
